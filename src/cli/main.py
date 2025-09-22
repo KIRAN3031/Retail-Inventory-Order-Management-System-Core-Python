@@ -4,7 +4,7 @@ from src.services.customer_service import CustomerService, CustomerServiceError
 from src.services.product_service import ProductService, ProductServiceError
 from src.services.order_service import OrderService, OrderServiceError
 from src.services.payment_service import PaymentService, PaymentServiceError
-from src.services.reporting_service import ReportingService
+from src.services.reporting_serivce import ReportingService
 
 class RetailCLI:
     def __init__(self):
