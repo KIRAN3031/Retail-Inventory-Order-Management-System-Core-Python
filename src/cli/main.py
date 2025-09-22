@@ -3,16 +3,19 @@ import json
 from src.services.customer_service import CustomerService, CustomerServiceError
 from src.services.product_service import ProductService, ProductServiceError
 from src.services.order_service import OrderService, OrderServiceError
+from src.services.payment_service import PaymentService, PaymentServiceError
+from src.services.reporting_service import ReportingService
 
 class RetailCLI:
     def __init__(self):
         self.customer_service = CustomerService()
         self.product_service = ProductService()
         self.order_service = OrderService()
+        self.payment_service = PaymentService()
+        self.reporting_service = ReportingService()
         self.parser = self.build_parser()
 
     # Product commands
-
     def cmd_product_add(self, args):
         try:
             p = self.product_service.add_product(args.name, args.sku, args.price, args.stock, args.category)
@@ -26,7 +29,6 @@ class RetailCLI:
         print(json.dumps(ps, indent=2, default=str))
 
     # Customer commands
-
     def cmd_customer_add(self, args):
         try:
             c = self.customer_service.create_customer(args.name, args.email, args.phone, args.city)
@@ -60,7 +62,6 @@ class RetailCLI:
         print(json.dumps(cs, indent=2, default=str))
 
     # Order commands
-
     def cmd_order_create(self, args):
         items = []
         for item_str in args.item:
@@ -106,6 +107,43 @@ class RetailCLI:
             print(json.dumps(ord, indent=2, default=str))
         except OrderServiceError as e:
             print("Error:", e)
+
+    # Payment commands
+    def cmd_payment_process(self, args):
+        try:
+            result = self.payment_service.process_payment(args.order_id, args.method)
+            print("Payment processed:")
+            print(json.dumps(result, indent=2, default=str))
+        except PaymentServiceError as e:
+            print("Error:", e)
+
+    def cmd_payment_refund(self, args):
+        try:
+            refund = self.payment_service.refund_payment(args.order_id)
+            print("Payment refunded:")
+            print(json.dumps(refund, indent=2, default=str))
+        except PaymentServiceError as e:
+            print("Error:", e)
+
+    # Reporting commands
+    def cmd_report_top_products(self, args):
+        data = self.reporting_service.get_top_selling_products(args.top_n)
+        print("Top selling products:")
+        print(json.dumps(data, indent=2, default=str))
+
+    def cmd_report_revenue(self, args):
+        revenue = self.reporting_service.get_total_revenue_last_month()
+        print(f"Total revenue last month: {revenue}")
+
+    def cmd_report_order_counts(self, args):
+        data = self.reporting_service.get_order_count_per_customer()
+        print("Order count per customer:")
+        print(json.dumps(data, indent=2, default=str))
+
+    def cmd_report_active_customers(self, args):
+        data = self.reporting_service.get_customers_with_multiple_orders(args.min_orders)
+        print("Customers with more than 2 orders:")
+        print(json.dumps(data, indent=2, default=str))
 
     def build_parser(self):
         parser = argparse.ArgumentParser(prog="retail-cli")
@@ -181,6 +219,37 @@ class RetailCLI:
         compo = porder_sub.add_parser("complete")
         compo.add_argument("--order_id", type=int, required=True)
         compo.set_defaults(func=self.cmd_order_complete)
+
+        # Payment commands
+        ppay = sub.add_parser("payment", help="payment commands")
+        ppay_sub = ppay.add_subparsers(dest="action")
+
+        process_pay = ppay_sub.add_parser("process")
+        process_pay.add_argument("--order_id", type=int, required=True)
+        process_pay.add_argument("--method", required=True, choices=["Cash", "Card", "UPI"])
+        process_pay.set_defaults(func=self.cmd_payment_process)
+
+        refund_pay = ppay_sub.add_parser("refund")
+        refund_pay.add_argument("--order_id", type=int, required=True)
+        refund_pay.set_defaults(func=self.cmd_payment_refund)
+
+        # Reporting commands
+        prep = sub.add_parser("report", help="reporting commands")
+        prep_sub = prep.add_subparsers(dest="action")
+
+        topprod = prep_sub.add_parser("top-products")
+        topprod.add_argument("--top_n", type=int, default=5)
+        topprod.set_defaults(func=self.cmd_report_top_products)
+
+        revenue = prep_sub.add_parser("revenue")
+        revenue.set_defaults(func=self.cmd_report_revenue)
+
+        ordercount = prep_sub.add_parser("order-count")
+        ordercount.set_defaults(func=self.cmd_report_order_counts)
+
+        activecust = prep_sub.add_parser("active-customers")
+        activecust.add_argument("--min_orders", type=int, default=2)
+        activecust.set_defaults(func=self.cmd_report_active_customers)
 
         return parser
 
